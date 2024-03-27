@@ -43,11 +43,16 @@
 <button onclick="createGif()">Salva GIF</button>
 <script src="https://cdn.jsdelivr.net/npm/gif.js"></script>
 <script>
-    const images = [
+    /*const images = [
         'image1.jpg',
         'image2.jpg',
         'image3.jpg'
+    ];*/
+
+    let images = [
+        
     ];
+	
 	
 	xOffset = [0,0,0]; // debug
 	yOffset = [0,0,0]; // debug
@@ -226,7 +231,7 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
     const files = event.target.files; // Ottiene i file selezionati dall'utente
     const canvasList = document.querySelectorAll('canvas');
     const ctxList = Array.from(canvasList).map(canvas => canvas.getContext('2d'));
-    const images = [];
+    //const images = [];
 
     // Carica le immagini selezionate dall'utente nei canvas
     for (let i = 0; i < files.length && i < canvasList.length; i++) {
@@ -239,6 +244,7 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
                 ctxList[i].drawImage(img, 0, 0, 400, 300);
             };
             img.src = reader.result;
+			images[i] = reader.result;
         };
         reader.readAsDataURL(file);
     }
