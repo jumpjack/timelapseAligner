@@ -40,8 +40,12 @@
 <button onclick="saveMarkers()">Salva Marker</button>
 <button onclick="loadMarkers()">Carica Marker</button>
 <button onclick="translateAll()">Trasla immagini</button>
-<button onclick="createGif()">Salva GIF</button>
+<button onclick="captureAndSave()">Salva GIF</button>
+
 <script src="https://cdn.jsdelivr.net/npm/gif.js"></script>
+<script src="CCapture.all.min.js"></script>
+
+
 <script>
     /*const images = [
         'image1.jpg',
@@ -250,6 +254,35 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
     }
 });	
 	
+
+function captureAndSave() {
+    const capturer = new CCapture({
+        format: 'gif',
+        workersPath: 'js/',
+        framerate: 10
+    });
+	
+let framerate = 30;
+var capturer2 = new CCapture( {  
+	format: 'gif',  
+	framerate,  
+	name: 'timelapse',  
+	quality: 100,
+} );	
+
+    capturer2.start();
+
+    for (let i = 1; i < 3; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
+        // Disegna i marker
+        drawMarkers();
+        // Aggiungi il frame alla cattura
+		console.log(i, document.getElementById('canvas' + i));
+        capturer2.capture(document.getElementById('canvas' + i));
+    }
+
+    capturer2.stop();
+    capturer2.save();
+}
 </script>
 
 
