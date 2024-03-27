@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Marker</title>
+<style>
+    .image-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    canvas {
+        border: 1px solid black;
+    }
+</style>
+</head>
+<body>
+
+<div class="image-container">
+    <h2>Immagine 1</h2>
+    <canvas id="canvas1" width="400" height="300"></canvas>
+</div>
+
+<div class="image-container">
+    <h2>Immagine 2</h2>
+    <canvas id="canvas2" width="400" height="300"></canvas>
+</div>
+
+<div class="image-container">
+    <h2>Immagine 3</h2>
+    <canvas id="canvas3" width="400" height="300"></canvas>
+</div>
+
+<input type="file" id="fileInput" multiple>
+<button onclick="loadImages()">Carica Immagini</button><br>
+
+<button onclick="saveMarkers()">Salva Marker</button>
+<button onclick="loadMarkers()">Carica Marker</button>
+<button onclick="translateAll()">Trasla immagini</button>
+<button onclick="createGif()">Salva GIF</button>
+<script src="https://cdn.jsdelivr.net/npm/gif.js"></script>
+<script>
+    const images = [
+        'image1.jpg',
+        'image2.jpg',
+        'image3.jpg'
+    ];
+	
+	xOffset = [0,0,0]; // debug
+	yOffset = [0,0,0]; // debug
+
+    const canvasList = document.querySelectorAll('canvas');
+    const ctxList = Array.from(canvasList).map(canvas => canvas.getContext('2d'));
+    let markers = [];
+
+    // Carica le immagini
+    /*images.forEach((imageUrl, index) => {
+        const img = new Image();
+        img.onload = function() {
+            ctxList[index].drawImage(img, 0, 0, 400, 300);
+            ctxList[index].drawImage(img, xOffset[index], yOffset[index], 400, 300);
+        };
+        img.src = imageUrl;
+    });*/
+
+    let isDragging = false;
+    let selectedMarker = null;
+
+function drawMarkers() {
+    ctxList.forEach((ctx, imageIndex) => {
+        // Ridisegna l'immagine originale come sfondo
+        const img = new Image();
+        img.onload = function() {
+			ctx.clearRect(0, 0, 400, 300);
+            ctx.drawImage(img, xOffset[imageIndex], yOffset[imageIndex], 400, 300);
+            // Disegna i marker sopra l'immagine
+            markers.forEach(marker => {
+                if (marker.imageIndex === imageIndex) {
+                    ctx.beginPath();
+                    ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'yellow';
+                    ctx.fill();
+                    ctx.strokeStyle = 'blue';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+        };
+        img.src = images[imageIndex];
+    });
+}
+
+    function saveMarkers() {
+        localStorage.setItem('markers', JSON.stringify(markers));
+    }
+
+    function loadMarkers() {
+        const savedMarkers = localStorage.getItem('markers');
+        if (savedMarkers) {
+            markers = JSON.parse(savedMarkers);
+            drawMarkers();
+        }
+    }
+
+    function getCursorPosition(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        return { x, y };
+    }
+
+    function findMarkerIndex(imageIndex, x, y) {
+        return markers.findIndex(marker => marker.imageIndex === imageIndex && Math.abs(marker.x - x) < 5 && Math.abs(marker.y - y) < 5);
+    }
+
+
+
+ canvasList.forEach(canvas => {
+    canvas.addEventListener('mousedown', function(event) {
+        const { x, y } = getCursorPosition(canvas, event);
+        const imageIndex = Array.from(canvasList).indexOf(canvas);
+        const markerIndex = findMarkerIndex(imageIndex, x, y);
+        if (markerIndex === -1) {
+            console.log("NUOVO");
+            canvasList.forEach((canvas, index) => {
+                markers.push({ x, y, imageIndex: index });
+            });
+            drawMarkers();
+        } else {
+            console.log("SPOSTO");
+            selectedMarker = markers[markerIndex];
+            isDragging = true;
+        }
+    });
+
+    canvas.addEventListener('mousemove', function(event) {
+        if (isDragging && selectedMarker) {
+            const { x, y } = getCursorPosition(canvas, event);
+            selectedMarker.x = x;
+            selectedMarker.y = y;
+            drawMarkers();
+        } else {
+	        const { x, y } = getCursorPosition(canvas, event);
+	        const imageIndex = Array.from(canvasList).indexOf(canvas);
+	        const markerIndex = findMarkerIndex(imageIndex, x, y);
+	        if (markerIndex !== -1) {
+	            canvas.style.cursor = 'pointer'; // Cambia il cursore quando passa sopra un marker
+	        } else {
+	            canvas.style.cursor = 'default'; // Ripristina il cursore predefinito quando non passa sopra un marker
+	        }		
+		}
+    });
+
+    canvas.addEventListener('mouseup', function() {
+        isDragging = false;
+        selectedMarker = null;
+    });
+});
+
+function translateMarkers() {
+    const firstImageMarkers = markers.filter(marker => marker.imageIndex === 0);
+    for (let i = 1; i < images.length; i++) {
+        const dx = markers[0].x - markers[i].x;
+        const dy = markers[0].y - markers[i].y;
+        markers.forEach(marker => {
+            if (marker.imageIndex === i) {
+                marker.x += dx;
+                marker.y += dy;
+            }
+        });
+    }
+	
+}
+
+function translateImages() {
+    for (let i = 1; i < images.length; i++) {
+		xOffset[i] = markers[0].x - markers[i].x;
+		yOffset[i] = markers[0].y - markers[i].y;
+		drawMarkers();
+    }
+}
+
+function translateAll() {
+    //translateMarkers();
+    translateImages();
+}
+
+    function createGif() {
+        const gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width: 400,
+            height: 300
+        });
+
+        for (let i = 0; i < images.length; i++) {
+            const canvas = document.getElementById('canvas' + (i + 1));
+            gif.addFrame(canvas, {copy: true, delay: 200});
+        }
+
+        gif.on('finished', function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'immagini.gif';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        gif.render();
+    }
+	
+	
+function loadImages() {
+    const fileInput = document.getElementById('fileInput');
+    fileInput.click(); // Apre la finestra di dialogo di selezione file quando si preme il pulsante
+}
+
+// Aggiungi un listener per l'evento change dell'elemento di input file
+document.getElementById('fileInput').addEventListener('change', function(event) {
+    const files = event.target.files; // Ottiene i file selezionati dall'utente
+    const canvasList = document.querySelectorAll('canvas');
+    const ctxList = Array.from(canvasList).map(canvas => canvas.getContext('2d'));
+    const images = [];
+
+    // Carica le immagini selezionate dall'utente nei canvas
+    for (let i = 0; i < files.length && i < canvasList.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        reader.onload = function() {
+            const img = new Image();
+            img.onload = function() {
+                ctxList[i].clearRect(0, 0, ctxList[i].canvas.width, ctxList[i].canvas.height);
+                ctxList[i].drawImage(img, 0, 0, 400, 300);
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});	
+	
+</script>
+
+
+</body>
+</html>
+
