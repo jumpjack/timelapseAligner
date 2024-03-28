@@ -30,7 +30,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/gif.js"></script>
 <script src="CCapture.all.min.js"></script>
-<script src="markers4.js"></script>
+<script src="markers3.js"></script>
 
 
 <script>
@@ -42,27 +42,19 @@
 	rotate = [];
 	scale = [];
     //let markers = []; /// DEBUG
-	
     let isDragging = false;
     let selectedMarker = null;
 	markersCount = 0;
 	MAX_MARKERS = 2;
-	const IMG_WIDTH = 1200;
-	const IMG_HEIGHT= 900;
 
-/*	for (var k=0; k< markers.length; k++) {
-		markers[k].x = markers[k].x *  IMG_WIDTH/400;
-		markers[k].y = markers[k].y *  IMG_HEIGHT/300;
-	}	*/
-	
 function drawMarkers(drawM) {
     ctxList.forEach((ctx, imageIndex) => {
 //console.log("Processing image ", imageIndex, ": ", rotate[imageIndex], scale[imageIndex],xOffset[imageIndex], yOffset[imageIndex] );	
         // Ridisegna l'immagine originale come sfondo
         const img = new Image();
         img.onload = function() {
-			ctx.clearRect(0, 0, IMG_WIDTH, IMG_HEIGHT);
-//            ctx.drawImage(img, xOffset[imageIndex], yOffset[imageIndex], IMG_WIDTH, IMG_HEIGHT);
+			ctx.clearRect(0, 0, 400, 300);
+//            ctx.drawImage(img, xOffset[imageIndex], yOffset[imageIndex], 400, 300);
 
 // Salva lo stato corrente del contesto
 ctx.save();
@@ -73,7 +65,7 @@ ctx.rotate(rotate[imageIndex]);
 ctx.scale(scale[imageIndex], scale[imageIndex]);
 
 // Disegna l'immagine
-ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+ctx.drawImage(img, 0, 0, 400,300);
 
 // Ripristina lo stato precedente del contesto
 ctx.restore();		
@@ -82,28 +74,13 @@ ctx.restore();
 			if (drawM) {
 	            markers.forEach(marker => {
 	                if (marker.imageIndex === imageIndex) {
-/*	                    ctx.beginPath();
+	                    ctx.beginPath();
 	                    ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
 	                    ctx.fillStyle = 'yellow';
 	                    ctx.fill();
 	                    ctx.strokeStyle = 'blue';
 	                    ctx.lineWidth = 2;
-	                    ctx.stroke();*/
-ctx.beginPath();
-ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
-ctx.strokeStyle = 'blue';
-ctx.lineWidth = 1;
-ctx.stroke();
-
-// Disegna la croce al centro del cerchio
-ctx.beginPath();
-ctx.moveTo(marker.x - 5, marker.y);
-ctx.lineTo(marker.x + 5, marker.y);
-ctx.moveTo(marker.x, marker.y - 5);
-ctx.lineTo(marker.x, marker.y + 5);
-ctx.strokeStyle = 'blue';
-ctx.lineWidth = 1;
-ctx.stroke();						
+	                    ctx.stroke();
 	                }
 	            });
 			}
@@ -143,8 +120,8 @@ ctx.stroke();
         const gif = new GIF({
             workers: 2,
             quality: 10,
-            width: IMG_WIDTH,
-            height: IMG_HEIGHT
+            width: 400,
+            height: 300
         });
 
         for (let i = 0; i < images.length; i++) {
@@ -191,8 +168,8 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
         // Crea un nuovo elemento canvas
         let canvas = document.createElement('canvas');
         canvas.id = 'canvas' + i;
-        canvas.width = IMG_WIDTH;
-        canvas.height = IMG_HEIGHT;
+        canvas.width = 400;
+        canvas.height = 300;
         div.appendChild(canvas);
 
         // Aggiungi il div al corpo del documento
@@ -254,7 +231,7 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
             const img = new Image();
             img.onload = function() {
                 ctxList[i].clearRect(0, 0, ctxList[i].canvas.width, ctxList[i].canvas.height);
-                ctxList[i].drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+                ctxList[i].drawImage(img, 0, 0, 400, 300);
             };
             img.src = reader.result;
 			images[i] = reader.result;
@@ -276,12 +253,12 @@ function captureAndSave() {
 
     capturer2.start();
 
-    for (let i = 1; i <= images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
+    for (let i = 1; i < images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
         // Disegna i marker
         drawMarkers(false);
     }
 	
-    for (let i = 1; i <= images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
+    for (let i = 1; i < images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
         capturer2.capture(document.getElementById('canvas' + i));
     }
 

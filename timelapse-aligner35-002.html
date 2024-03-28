@@ -30,7 +30,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/gif.js"></script>
 <script src="CCapture.all.min.js"></script>
-<script src="markers4.js"></script>
+<script src="markers3.js"></script>
 
 
 <script>
@@ -50,10 +50,10 @@
 	const IMG_WIDTH = 1200;
 	const IMG_HEIGHT= 900;
 
-/*	for (var k=0; k< markers.length; k++) {
+	for (var k=0; k< markers.length; k++) {
 		markers[k].x = markers[k].x *  IMG_WIDTH/400;
 		markers[k].y = markers[k].y *  IMG_HEIGHT/300;
-	}	*/
+	}	
 	
 function drawMarkers(drawM) {
     ctxList.forEach((ctx, imageIndex) => {
@@ -82,28 +82,13 @@ ctx.restore();
 			if (drawM) {
 	            markers.forEach(marker => {
 	                if (marker.imageIndex === imageIndex) {
-/*	                    ctx.beginPath();
+	                    ctx.beginPath();
 	                    ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
 	                    ctx.fillStyle = 'yellow';
 	                    ctx.fill();
 	                    ctx.strokeStyle = 'blue';
 	                    ctx.lineWidth = 2;
-	                    ctx.stroke();*/
-ctx.beginPath();
-ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
-ctx.strokeStyle = 'blue';
-ctx.lineWidth = 1;
-ctx.stroke();
-
-// Disegna la croce al centro del cerchio
-ctx.beginPath();
-ctx.moveTo(marker.x - 5, marker.y);
-ctx.lineTo(marker.x + 5, marker.y);
-ctx.moveTo(marker.x, marker.y - 5);
-ctx.lineTo(marker.x, marker.y + 5);
-ctx.strokeStyle = 'blue';
-ctx.lineWidth = 1;
-ctx.stroke();						
+	                    ctx.stroke();
 	                }
 	            });
 			}
@@ -276,12 +261,12 @@ function captureAndSave() {
 
     capturer2.start();
 
-    for (let i = 1; i <= images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
+    for (let i = 1; i < images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
         // Disegna i marker
         drawMarkers(false);
     }
 	
-    for (let i = 1; i <= images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
+    for (let i = 1; i < images.length; i++) { // Cambia il numero di frame a seconda della durata desiderata dell'animazione
         capturer2.capture(document.getElementById('canvas' + i));
     }
 
