@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Marker</title>
+<style>
+    .image-container {
+       //display: flex;
+        //flex-direction: column;
+        //align-items: center;
+        //margin-bottom: 20px;
+            display: inline-block;
+            vertical-align: top; /* Allinea i div superiormente */
+            margin-right: 10px; /* Aggiunge un margine tra i div */		
+    }
+
+    canvas {
+        border: 1px solid black;
+    }
+	
+     #overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5); /* Colore di sfondo con opacità */
+          display: none; /* Inizialmente nascosto */
+          justify-content: center;
+          align-items: center;
+      }
+
+      #loadingMessage {
+          color: white;
+          font-size: 24px;
+          text-align: center;
+      }
+
+      #progressBar {
+          width: 80%;
+          margin-top: 20px;
+      }
+		
+</style>
+</head>
+<body>
+
+<div id="divZoom">
+
+</div>
+-<br>
+
+<input type="file" id="fileInput" multiple>
+<button onclick="loadImages()">Carica Immagini</button><br>
+    <div id="overlay">
+        <div id="loadingMessage">Caricamento in corso...</div>
+        <progress id="progressBar" max="100" value="0"></progress>
+    </div>
+<div id="status"></div>
+<br>
+
+
+<button onclick="saveMarkers()">Salva Marker</button>
+<button onclick="loadMarkers()">Carica Marker</button>
+<button onclick="clearMarkers()">Cancella Markers da memoria permanente</button>
+<button onclick="clearMarkers2()">Cancella Markers da memoria temporanea</button><br>
+<button onclick="calcOffset()">Calcola offset</button>
+<button onclick="drawImages(false)">Mostra immagini originali</button>
+<button onclick="drawImages(true)">Mostra immagini elaborate</button>
+<button onclick="captureAndSave()">Salva GIF</button><br>
+<br>
+<input type="checkbox" id="processedCheckbox" checked>
+<label for="processedCheckbox">Immagine elaborata</label>
+
+<input type="checkbox" id="translationCheckbox" checked>
+<label for="translationCheckbox">Applica Traslazione</label>
+
+<input type="checkbox" id="scaleCheckbox" checked>
+<label for="scaleCheckbox">Applica Scala</label>
+
+<input type="checkbox" id="rotationCheckbox" checked>
+<label for="rotationCheckbox">Applica Rotazione</label><br>
+
+
+Image:<input type="range" id="imageSlider" min="0" max="100" style="width:300px;" value="1">
+<label for="imageSlider" id="sliderValueLabel">1</label><br>
+<br>
+<script src="CCapture.all.min.js"></script>
+<script src="markers4.js"></script>
+
+
+<script>
+
+    let images = [];	
+	xOffset = []; translateX = 0;
+	yOffset = []; translateY = 0;
+	angle = [];
+	rotate = [];
+	scale = [];
+	offsetCalculated = false;
+	animationOn = false;
+    let labels = ['m1x', 'm1y', 'm2x', 'm2y', 'offX', 'offY', 'scale', 'rot'];
+	
+    //let markers = []; /// DEBUG
+	
+    let isDragging = false;
+    let selectedMarker = null;
+	markersCount = [];
+	MAX_MARKERS = 2;
+	const IMG_WIDTH = 300; //1200;
+	const IMG_HEIGHT= 200; //900;
+
+	/*	for (var k=0; k< markers.length; k++) {
+			markers[k].x = markers[k].x *  IMG_WIDTH/400;
+			markers[k].y = markers[k].y *  IMG_HEIGHT/300;
+		}	*/
+		
+	
+	function drawMarkers(redrawImage) {
+	    ctxList.forEach((ctx, imageIndex) => {
+	//	if (imageIndex>0) {		
+//console.log("Loading markers for image ", imageIndex);	
+			if (typeof markers[imageIndex*2] !== 'undefined') {
+//console.log("  M1");			
+				document.getElementById("m1x_" + imageIndex).textContent = "Marker 1 x:" + markers[imageIndex*2].x.toFixed(0);
+				document.getElementById("m1y_" + imageIndex).textContent = "Marker 1 y:" +  markers[imageIndex*2].y.toFixed(0);
+			}
+//console.log("  M2");			
+			if (typeof markers[imageIndex*2+1] !== 'undefined') {
+				document.getElementById("m2x_" + imageIndex).textContent = "Marker 2 x:" + markers[imageIndex*2+1].x.toFixed(0);
+				document.getElementById("m2y_" + imageIndex).textContent = "Marker 2 y:" +  markers[imageIndex*2+1].y.toFixed(0);
+			}
+	//	}		
+	//console.log("Processing image ", imageIndex, ": ", rotate[imageIndex], scale[imageIndex],xOffset[imageIndex], yOffset[imageIndex] );	
+	        // Ridisegna l'immagine originale come sfondo
+	        const img = new Image();
+	        img.onload = function() {
+				if (redrawImage) {
+					ctx.clearRect(0, 0, IMG_WIDTH, IMG_HEIGHT);
+		            ctx.drawImage(img,0,0, IMG_WIDTH, IMG_HEIGHT);
+				}
+
+	            // Disegna i marker sopra l'immagine
+	            markers.forEach(marker => {
+	                if (marker.imageIndex === imageIndex) {
+						drawDot(ctx, marker);
+	                }
+	            });
+	        };
+	        img.src = images[imageIndex];
+	    });
+	}
+
+
+	function drawDot(ctx, marker) {
+		ctx.beginPath();
+		ctx.arc(marker.x, marker.y, 5, 0, 2 * Math.PI);
+		ctx.strokeStyle = 'blue';
+		ctx.lineWidth = 1;
+		ctx.stroke();
+
+		// Disegna la croce al centro del cerchio
+		ctx.beginPath();
+		ctx.moveTo(marker.x - 5, marker.y);
+		ctx.lineTo(marker.x + 5, marker.y);
+		ctx.moveTo(marker.x, marker.y - 5);
+		ctx.lineTo(marker.x, marker.y + 5);
+		ctx.strokeStyle = 'blue';
+		ctx.lineWidth = 1;
+		ctx.stroke();
+	}
+	
+
+    function saveMarkers() {
+        localStorage.setItem('markers', JSON.stringify(markers));
+    }
+	
+
+    function loadMarkers() {
+        const savedMarkers = localStorage.getItem('markers');
+        if (savedMarkers) {
+            markers = JSON.parse(savedMarkers);
+    markers.forEach(marker => {
+        markersCount[marker.imageIndex]++;
+    });			
+            drawMarkers(true);
+        }
+    }
+	
+	
+	function clearMarkers() {
+	    const confirmation = confirm("Sei sicuro di voler eliminare tutti i marker?");
+	    if (confirmation) {
+	        localStorage.removeItem('markers');
+	        // Rimuovi anche i marker dalla mappa o da dove sono memorizzati
+	        // Ad esempio, se i marker sono aggiunti a una mappa, potresti fare:
+	        // map.removeMarkers();
+	    }
+	}
+
+	function clearMarkers2() {
+	    const confirmation = confirm("Sei sicuro di voler eliminare tutti i marker?");
+	    if (confirmation) {
+	        markers = [];
+	    }
+	}
+	
+
+    function getCursorPosition(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        return { x, y };
+    }
+
+    function findMarkerIndex(imageIndex, x, y) {
+        return markers.findIndex(marker => marker.imageIndex === imageIndex && Math.abs(marker.x - x) < 5 && Math.abs(marker.y - y) < 5);
+    }
+
+	
+	
+	function loadImages() {
+	    const fileInput = document.getElementById('fileInput');
+	    fileInput.click(); // Apre la finestra di dialogo di selezione file quando si preme il pulsante
+	}
+
+
+
+function captureAndSave() {
+
+	let framerate = 10;
+	var capturer2 = new CCapture( {  
+		format: 'webm',  
+		framerate,  
+		name: 'timelapse',  
+		quality: 100,
+	} );	
+
+    capturer2.start();
+
+    for (let i = 0; i < images.length; i++) { 
+        drawImages(true); // draw processed images
+    }
+	
+    for (let i = 0; i < images.length; i++) { 
+console.log("Capturing canvas n.", i, document.getElementById('canvas' + i));	
+        capturer2.capture(document.getElementById('canvas' + i));
+    }
+
+    capturer2.stop();
+    capturer2.save();
+}
+
+
+function calculateAngle(imIdx) {
+    // Calcola i coefficienti angolari delle due rette
+    //let m1 = (markers[1].y - markers[0].y) / (markers[1].x - markers[0].x);
+    //let m2 = (markers[(imIdx*2)+1].y - markers[(imIdx*2)].y) / (markers[(imIdx*2)+1].x - markers[(imIdx*2)].x);
+
+    // Calcola l'angolo tra le due rette
+    //let angle = Math.atan(Math.abs((m2 - m1) / (1 + m1 * m2)));
+	angle1 = Math.atan((markers[1].y - markers[0].y) / (markers[1].x - markers[0].x + 0.0000001));
+	angle2 = Math.atan((markers[imIdx+1].y - markers[imIdx].y) / (markers[imIdx+1].x - markers[imIdx].x + 0.0000001));
+
+    let angle = angle2-angle1;
+
+    return angle;
+}
+
+
+/*
+	function translateImagesOld() {
+	    for (let i = 1; i < images.length; i++) {
+			xOffset[i] = markers[0].x - markers[i].x;
+			yOffset[i] = markers[0].y - markers[i].y;
+			drawMarkers(true);
+	    }
+	}
+*/
+
+
+
+function calcOffset() {
+	// Posizioni dei marker
+	var m1 = markers[0];
+	var m2 = markers[1];
+
+	for (let i = 1; i < images.length; i++) {
+		m3 = markers[i*2];
+		m4 = markers[i*2+1];
+//console.log("For image ", i , " using markers ", (i-0)*2 , " and " , (i-0)*2+1 , ":");
+//console.log(m3,m4);
+		// Calcola la distanza tra i marker per ciascuna immagine
+		dist1 = Math.hypot(m2.x - m1.x, m2.y - m1.y);
+		dist2 = Math.hypot(m4.x - m3.x, m4.y - m3.y);
+
+		// Calcola la scala, la rotazione e la traslazione necessarie
+		scale[i]  =  dist1 / dist2; // DEBUG
+		translateX = m1.x - scale[i] * m3.x;
+		xOffset[i] = translateX;
+		translateY = m1.y - scale[i] * m3.y;
+		yOffset[i] = translateY	
+		
+		// Calcola l'angolo tra i marker per ciascuna immagine
+		angle1 = Math.atan2(m2.y - m1.y, m2.x - m1.x);
+		angle2 = Math.atan2((m4.y - yOffset[i]) - (m3.y - yOffset[i]), (m4.x - xOffset[i]) - (m3.x - xOffset[i]));
+		rotate[i] = angle1 - angle2;
+//console.log("Rotation = ", rotate[i]*180/3.14);		
+		
+//console.log("Result: rotate=", (rotate[i]*180/3.14).toFixed(1),"deg, scale=", scale[i].toFixed(1), ", xOffset=", (xOffset[i]).toFixed(1), ", yOffset=", (yOffset[i]).toFixed(1) );
+		if (i>0) {		
+			document.getElementById("offX_" + i).textContent = "XOFF="+xOffset[i].toFixed(0);
+			document.getElementById("offY_" + i).textContent = "YOFF="+yOffset[i].toFixed(0);
+			document.getElementById("scale_" + i).textContent = "Scale="+scale[i].toFixed(0);
+			document.getElementById("rot_" + i).textContent = "Rot (deg)="+(rotate[i]*180/3.14).toFixed(0);
+		}					
+	}
+	offsetCalculated = true;
+	//drawMarkers(false);
+}
+
+function drawSpecificImage(imageIndex, processed,  offs = true, sc = true, rot = false, originalRotation = true, customRotation) {
+	if (typeof ctxList === 'undefined') {
+		alert("No images loaded!");
+		return -2;
+	}
+	
+	if (processed) {
+		if (!offsetCalculated) {
+			alert("Images not processed yet!");
+			return -1;
+		}
+	}
+	
+	var canv = document.getElementById("canvas0");
+	var ctx = canv.getContext('2d');
+    // Ridisegna l'immagine originale come sfondo
+    const img = new Image();
+    img.onload = function() {
+		ctx.clearRect(0, 0, IMG_WIDTH, IMG_HEIGHT);
+
+		if (processed) {
+			if (imageIndex > 0) { // image 0 is reference
+//				console.log("Image n.", imageIndex, ": ", (rotate[imageIndex]*180/3.14).toFixed(1),"deg, scale=", scale[imageIndex].toFixed(1), ", xOffset=", (xOffset[imageIndex]).toFixed(1), ", yOffset=", (yOffset[imageIndex]).toFixed(1) );	
+				ctx.save();
+
+				if (offs) {
+					ctx.translate(xOffset[imageIndex], yOffset[imageIndex]);
+				}	
+//ctx.restore();
+				
+				if (rot) {
+//ctx.save(); 
+//ctx.translate(markers[2*imageIndex].x - xOffset[imageIndex], markers[2*imageIndex].y - yOffset[imageIndex]); // Center on repositioned first marker
+					if (originalRotation) {
+						ctx.rotate(rotate[imageIndex]);
+					} else {
+						ctx.rotate(customRotation*3.14/180);
+					}
+				}
+//ctx.restore();
+				
+				if (sc) {
+					ctx.scale(scale[imageIndex], scale[imageIndex]);
+				}					
+			}
+			
+			ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+			
+			if (imageIndex > 0) {
+				ctx.restore();
+			}
+		} else {
+//			console.log("Original image ", imageIndex );	
+			// Disegna l'immagine
+			ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+		}
+
+    };
+    img.src = images[imageIndex];
+}
+
+
+function drawImages(processed) {
+	if (typeof ctxList === 'undefined') {
+		alert("No images loaded!");
+		return -2;
+	}
+	
+	if (processed) {
+		if (!offsetCalculated) {
+			alert("Images not processed yet!");
+			return -1;
+		}
+	}
+	
+    ctxList.forEach((ctx, imageIndex) => {
+        // Ridisegna l'immagine originale come sfondo
+        const img = new Image();
+        img.onload = function() {
+			ctx.clearRect(0, 0, IMG_WIDTH, IMG_HEIGHT);
+
+			if (processed) {
+				if (imageIndex > 0) { // image 0 is reference
+//console.log("Processed image ", imageIndex, ": ",  (rotate[imageIndex]*180/3.14).toFixed(1),"deg, scale=", scale[imageIndex].toFixed(1), ", xOffset=", (xOffset[imageIndex]).toFixed(1), ", yOffset=", (yOffset[imageIndex]).toFixed(1) );	
+					// Salva lo stato corrente del contesto
+					ctx.save();
+
+					// Applica le trasformazioni al contesto
+					ctx.translate(xOffset[imageIndex], yOffset[imageIndex]);
+//					ctx.rotate(rotate[imageIndex]);
+					ctx.scale(scale[imageIndex], scale[imageIndex]);
+				}
+			} else {
+				console.log("Original image ", imageIndex );	
+			}
+
+			// Disegna l'immagine
+			ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+
+			if (processed) {
+				if (imageIndex > 0) { // image 0 is reference
+					// Ripristina lo stato precedente del contesto
+					ctx.restore();	
+				}	
+			}
+        };
+        img.src = images[imageIndex];
+    });
+}
+
+
+function drawReferenceMarkers() {
+    ctxList.forEach((ctx, imageIndex) => {
+    	// Disegna i marker sopra l'immagine
+      markers.forEach(marker => {
+          if (marker.imageIndex === imageIndex) {
+              ctx.beginPath();
+              ctx.arc(markers[0].x, markers[0].y, 5, 0, 2 * Math.PI);
+              ctx.fillStyle = 'red';
+              ctx.fill();
+              ctx.strokeStyle = 'red';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.arc(markers[1].x, markers[1].y, 5, 0, 2 * Math.PI);
+              ctx.fillStyle = 'red';
+              ctx.fill();
+              ctx.strokeStyle = 'red';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+          }
+      });
+
+    });
+}
+
+
+function showImagesSequentially(imageUrls, intervalInSeconds,processed) {
+    const canvas = document.getElementById('canvas1');
+    const ctx = canvas.getContext('2d');
+    let currentIndex = 0;
+
+    function drawImage() {
+        if (animationOn) {
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+				if (processed) {				
+					if (currentIndex > 0) { // image 0 is reference	
+						// Salva lo stato corrente del contesto
+						ctx.save();
+
+						// Applica le trasformazioni al contesto
+						ctx.translate(xOffset[currentIndex], yOffset[currentIndex]);
+						ctx.rotate(rotate[currentIndex]);
+						ctx.scale(scale[currentIndex], scale[currentIndex]);
+					}
+
+					// Disegna l'immagine
+					ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+
+					if (currentIndex > 0) { // image 0 is reference
+						// Ripristina lo stato precedente del contesto
+						ctx.restore();	
+					}	
+				} else {
+                	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				}
+                currentIndex = (currentIndex + 1) % imageUrls.length;
+                setTimeout(drawImage, intervalInSeconds * 1000);
+            };
+            img.src = imageUrls[currentIndex];
+        }
+    }
+
+    drawImage(); // Avvia l'animazione
+}
+
+// Funzione per gestire il cambiamento dello slider
+function handleSliderChange() {
+    const sliderValue = document.getElementById('imageSlider').value;
+	const proc = document.getElementById('processedCheckbox').checked;
+	const offs = document.getElementById('translationCheckbox').checked;
+	const sc = document.getElementById('scaleCheckbox').checked;
+	const rot = document.getElementById('rotationCheckbox').checked;
+
+// function drawSpecificImage(imageIndex, processed,  offs = true, sc = true, rot = false, originalRotation = true, customRotation) {
+	drawSpecificImage(parseInt(sliderValue), proc, offs, sc, rot);
+	document.getElementById('sliderValueLabel').innerText = sliderValue;
+}
+
+
+      function preloadImages(files) {
+            showOverlay(); // Mostra l'overlay al inizio del caricamento
+
+            let loadedCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const img = new Image();
+                    img.onload = function() {
+                        loadedCount++;
+                        const progress = (loadedCount / files.length) * 100;
+                        progressBar.value = progress;
+
+                        if (loadedCount === files.length) {
+                            loadingMessage.textContent = 'Caricamento completato';
+                            setTimeout(hideOverlay, 500); // Nasconde l'overlay dopo 1 secondo
+                        }
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        }
+		
+		
+//////////////////////////////////////////////////////////////////////////////
+////////////// Script body ////////////
+//////////////////////////////////////////////////////////////////////////////
+
+    const progressBar = document.getElementById('progressBar');
+    const statusDiv = document.getElementById('status');
+
+    const overlay = document.getElementById('overlay');
+//    const progressBar = document.getElementById('progressBar');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    function showOverlay() {
+        overlay.style.display = 'flex'; // Mostra l'overlay
+    }
+
+    function hideOverlay() {
+        overlay.style.display = 'none'; // Nascondi l'overlay
+    }
+
+	// Aggiungi un listener per l'evento change dell'elemento di input file
+	document.getElementById('fileInput').addEventListener('change', function(event) {
+    const files = event.target.files; // Ottiene i file selezionati dall'utente
+	imageSlider.max = files.length-1;
+	preloadImages(files);	
+
+
+	///// Crea un DIV con canvas per ogni immagine da caricare
+    for(let i = 0; i < files.length; i++) {
+        // Crea un nuovo elemento div
+        let div = document.createElement('div');
+        div.className = 'image-container';
+
+	    labels.forEach((labelName, index) => {
+	        let label = document.createElement('label');
+	        label.textContent = "-";
+			label.id = labels[index] + "_" + i;
+
+			div.appendChild(label);
+			br = document.createElement("BR");
+			div.appendChild(br);        
+	    });		
+	
+	
+        // Crea un nuovo elemento canvas
+        let canvas = document.createElement('canvas');
+		let ctx = canvas.getContext("2d");
+        canvas.id = 'canvas' + i;
+        canvas.width = IMG_WIDTH;
+        canvas.height = IMG_HEIGHT;
+        div.appendChild(canvas);
+
+		//const file = files[i];
+		const reader = new FileReader();
+		reader.onload = function() {
+		    const img = new Image();
+		    img.onload = function() {
+		        ctx.clearRect(0, 0, canvas.width, canvas.height);
+		        ctx.drawImage(img, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+		    };
+		    img.src = reader.result;
+			images[i] = reader.result;
+		};
+		reader.readAsDataURL(files[i]);
+		
+		
+        // Aggiungi il div al corpo del documento
+        document.body.appendChild(div);
+		
+		///// Inizializza variabili associate all'immagine
+		xOffset.push(0);
+		yOffset.push(0);
+		markersCount[i] = 0;
+    }
+
+    canvasList = document.querySelectorAll('canvas');
+    ctxList = Array.from(canvasList).map(canvas => canvas.getContext('2d'));
+/*
+	
+	
+*/
+	let magnifierSize = 100; // Dimensioni del quadrato dello zoom
+	let magnificationFactor = 2; // Fattore di ingrandimento
+	let canvasZoom = document.createElement('canvas');
+	canvasZoom.id = 'canvasZoom';
+	canvasZoom.width = magnifierSize * magnificationFactor;
+	canvasZoom.height = magnifierSize * magnificationFactor;
+	let divZoom = document.getElementById('divZoom');
+	divZoom.appendChild(canvasZoom);
+	var ctxZoom = canvasZoom.getContext("2d");
+			
+	canvasList.forEach(canvas => {		 
+		var mouseX;
+		var mouseY;
+
+	    canvas.addEventListener('mousedown', function(event) {
+	        const { x, y } = getCursorPosition(canvas, event);
+	        const imageIndex = Array.from(canvasList).indexOf(canvas);
+	        const markerIndex = findMarkerIndex(imageIndex, x, y);
+	        if ((markerIndex === -1) && (markersCount[imageIndex] < MAX_MARKERS)){
+                markers.push({ x, y, imageIndex: imageIndex });
+				markersCount[imageIndex]++;
+	            drawMarkers(true);
+	        } else {
+console.log("Marker esauriti");			
+	            selectedMarker = markers[markerIndex];
+console.log("Selezionato:",selectedMarker);			
+	            isDragging = true;
+	        }
+	    });
+
+	    canvas.addEventListener('mousemove', function(event) {
+	        if (isDragging && selectedMarker) {
+	            const { x, y } = getCursorPosition(canvas, event);
+				mouseX = x;
+				mouseY = y;
+				image = new Image();
+				const imageIndex = Array.from(canvasList).indexOf(canvas);	
+				image.src = images[imageIndex]; 
+	            selectedMarker.x = x;
+	            selectedMarker.y = y;
+	            drawMarkers(true);
+	        } else {
+		        const { x, y } = getCursorPosition(canvas, event);				
+				mouseX = x;
+				mouseY = y;
+				image = new Image();
+				const imageIndex = Array.from(canvasList).indexOf(canvas);			
+				image.src = images[imageIndex]; 
+		        const markerIndex = findMarkerIndex(imageIndex, x, y);
+		        if (markerIndex !== -1) {
+		            canvas.style.cursor = 'pointer'; // Cambia il cursore quando passa sopra un marker
+		        } else {
+		            canvas.style.cursor = 'default'; // Ripristina il cursore predefinito quando non passa sopra un marker
+		        }		
+			}
+
+			// Calcola le coordinate dell'area di ingrandimento
+			let zoomX = mouseX - magnifierSize / 2;
+			let zoomY = mouseY - magnifierSize / 2;
+
+			// Copia in canvas zoom l'area zoomata, ingrandendola:
+			ctxZoom.clearRect(0, 0, magnifierSize * magnificationFactor, magnifierSize * magnificationFactor);
+			ctxZoom.drawImage(canvas, zoomX, zoomY, magnifierSize, magnifierSize , 0, 0, magnifierSize * magnificationFactor, magnifierSize * magnificationFactor);
+
+			// Disegna la croce al centro del quadrato di ingrandimento
+			ctxZoom.beginPath();
+			ctxZoom.moveTo(magnifierSize * magnificationFactor/2 - 5, magnifierSize * magnificationFactor/2);
+			ctxZoom.lineTo(magnifierSize * magnificationFactor/2 + 5, magnifierSize * magnificationFactor/2);
+			ctxZoom.moveTo(magnifierSize * magnificationFactor/2, magnifierSize * magnificationFactor/2-5);
+			ctxZoom.lineTo(magnifierSize * magnificationFactor/2, magnifierSize * magnificationFactor/2+5);
+			ctxZoom.strokeStyle = 'blue';
+			ctxZoom.stroke();
+			
+	    });
+
+	    canvas.addEventListener('mouseup', function() {
+	        isDragging = false;
+	        selectedMarker = null;
+	    });
+	
+	});
+
+
+
+});	
+
+document.getElementById('imageSlider').addEventListener('input', handleSliderChange);
+	
+
+</script>
+
+
+</body>
+</html>
+
